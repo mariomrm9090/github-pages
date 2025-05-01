@@ -1,75 +1,119 @@
-<header>
+//@version=5
+indicator("Webby\'s Bob Marley Off-High (Yellow Zone Only)", shorttitle = 'WBM Yellow Only')
 
-<!--
-  <<< Author notes: Course header >>>
-  Include a 1280×640 image, course title in sentence case, and a concise description in emphasis.
-  In your repository settings: enable template repository, add your 1280×640 social image, auto delete head branches.
-  Add your open source license, GitHub uses MIT license.
--->
+//----------settings----------//
+select  = input.string('Percent', '% or ATR off High', ['Percent', 'ATR'])
+atrLen  = input.int(21, 'ATR Length')
+src     = input.source(close, 'Source to Meassure', tooltip = 'Source for meassurement. Example: if low is selected the indicator will meassure how far the bars low is from the 52 week high')
+lineCol = input.color(color.blue, 'Off 52 Week High Line Color')
+col50   = input.color(color.fuchsia, 'Off 50 Day High Line Color')
+col18   = input.color(color.black, 'Off 18 Month High Line Color')
+z2Col   = input.color(color.yellow, 'Yellow Zone Background Color', tooltip = 'For % this zone is 8-15%, ATR is 4-8')
+zoneTransparency = input.int(80, 'Zone Transparency', minval=0, maxval=100, tooltip='Higher values = more transparent')
+off     = input.bool(true, 'Cut off', tooltip = 'If selected anything more than 15% or 8 ATR off the high will be drawn at bottom level to keep the scaling and plot in the zones')
 
-# GitHub Pages
+//----------caluclations----------//
+yearhigh    = ta.highest(high, 251)
+high50Day   = ta.highest(high, 49)
+high18M     = ta.highest(high, 375)
+atr         = ta.atr(atrLen)
+distAway    = ((src - yearhigh) / yearhigh) * 100
+distAway50  = ((src - high50Day) / high50Day) * 100
+distAway18  = ((src - high18M) / high18M) * 100
+distATR     = (src - yearhigh) / atr
+distATR50   = (src - high50Day) / atr
+distATR18   = (src - high18M) / atr
 
-_Create a site or blog from your GitHub repositories with GitHub Pages._
+// Apply cutoff and stay within boundaries for percent
+if distAway < -15 and off
+    distAway := -15
+if distAway > 0
+    distAway := 0
+    
+if distAway50 < -15 and off
+    distAway50 := -15
+if distAway50 > 0
+    distAway50 := 0
 
-</header>
+if distAway18 < -15 and off
+    distAway18 := -15
+if distAway18 > 0
+    distAway18 := 0
 
-<!--
-  <<< Author notes: Course start >>>
-  Include start button, a note about Actions minutes,
-  and tell the learner why they should take the course.
--->
+// Apply cutoff and stay within boundaries for ATR
+if distATR < -8 and off
+    distATR := -8
+if distATR > 0
+    distATR := 0
 
-## Welcome
+if distATR50 < -8 and off
+    distATR50 := -8
+if distATR50 > 0
+    distATR50 := 0
 
-With GitHub Pages, you can host project blogs, documentation, resumes, portfolios, or any other static content you'd like. Your GitHub repository can easily become its own website. In this course, we'll show you how to set up your own site or blog using GitHub Pages.
+if distATR18 < -8 and off
+    distATR18 := -8
+if distATR18 > 0
+    distATR18 := 0
 
-- **Who is this for**: Beginners, students, project maintainers, small businesses.
-- **What you'll learn**: How to build a GitHub Pages site.
-- **What you'll build**: We'll build a simple GitHub Pages site with a blog. We'll use [Jekyll](https://jekyllrb.com), a static site generator.
-- **Prerequisites**: If you need to learn about branches, commits, and pull requests, take [Introduction to GitHub](https://github.com/skills/introduction-to-github) first.
-- **How long**: This course takes less than one hour to complete.
+// Define yellow zone thresholds
+yellowZoneUpperThreshold = select == 'Percent' ? -8.0 : -4.0
+yellowZoneLowerThreshold = select == 'Percent' ? -15.0 : -8.0
 
-In this course, you will:
+// Check if we're crossing into the yellow zone (from above)
+crossingIntoYellowZone = false
+if select == 'Percent'
+    crossingIntoYellowZone := distAway[1] > yellowZoneUpperThreshold and distAway <= yellowZoneUpperThreshold
+else
+    crossingIntoYellowZone := distATR[1] > yellowZoneUpperThreshold and distATR <= yellowZoneUpperThreshold
 
-1. Enable GitHub Pages
-2. Configure your site
-3. Customize your home page
-4. Create a blog post
-5. Merge your pull request
+// Create a state variable to track if we've crossed into the yellow zone
+var hasTriggered = false
 
-### How to start this course
+// Set the trigger if we cross into the yellow zone
+if crossingIntoYellowZone
+    hasTriggered := true
 
-<!-- For start course, run in JavaScript:
-'https://github.com/new?' + new URLSearchParams({
-  template_owner: 'skills',
-  template_name: 'github-pages',
-  owner: '@me',
-  name: 'skills-github-pages',
-  description: 'My clone repository',
-  visibility: 'public',
-}).toString()
--->
+// Check if each indicator is in the yellow zone
+inYellowZone_52w = false
+inYellowZone_50d = false
+inYellowZone_18m = false
 
-[![start-course](https://user-images.githubusercontent.com/1221423/235727646-4a590299-ffe5-480d-8cd5-8194ea184546.svg)](https://github.com/new?template_owner=skills&template_name=github-pages&owner=%40me&name=skills-github-pages&description=My+clone+repository&visibility=public)
+if select == 'Percent'
+    inYellowZone_52w := distAway <= yellowZoneUpperThreshold and distAway > yellowZoneLowerThreshold
+    inYellowZone_50d := distAway50 <= yellowZoneUpperThreshold and distAway50 > yellowZoneLowerThreshold
+    inYellowZone_18m := distAway18 <= yellowZoneUpperThreshold and distAway18 > yellowZoneLowerThreshold
+else
+    inYellowZone_52w := distATR <= yellowZoneUpperThreshold and distATR > yellowZoneLowerThreshold
+    inYellowZone_50d := distATR50 <= yellowZoneUpperThreshold and distATR50 > yellowZoneLowerThreshold
+    inYellowZone_18m := distATR18 <= yellowZoneUpperThreshold and distATR18 > yellowZoneLowerThreshold
 
-1. Right-click **Start course** and open the link in a new tab.
-2. In the new tab, most of the prompts will automatically fill in for you.
-   - For owner, choose your personal account or an organization to host the repository.
-   - We recommend creating a public repository, as private repositories will [use Actions minutes](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions).
-   - Scroll down and click the **Create repository** button at the bottom of the form.
-3. After your new repository is created, wait about 20 seconds, then refresh the page. Follow the step-by-step instructions in the new repository's README.
+// Display conditions for each plot - only show when that specific indicator is in yellow zone AND after crossing into it
+shouldDisplay_52w = hasTriggered and inYellowZone_52w
+shouldDisplay_50d = hasTriggered and inYellowZone_50d
+shouldDisplay_18m = hasTriggered and inYellowZone_18m
 
-<footer>
+//----------plots----------//
+plot(shouldDisplay_52w ? distAway : na, '% Off 52 Week High', lineCol, display = select == 'Percent' ? display.all : display.none)
+plot(shouldDisplay_50d ? distAway50 : na, '% Off 50 Day High', col50, display = select == 'Percent' ? display.all : display.none)
+plot(shouldDisplay_18m ? distAway18 : na, '% Off 18 Month High', col18, display = select == 'Percent' ? display.all : display.none)
+plot(shouldDisplay_52w ? distATR : na, 'ATR Off 52 Week High', lineCol, display = select == 'ATR' ? display.all : display.none)
+plot(shouldDisplay_50d ? distATR50 : na, 'ATR Off 50 Day High', col50, display = select == 'ATR' ? display.all : display.none)
+plot(shouldDisplay_18m ? distATR18 : na, 'ATR Off 18 Month High', col18, display = select == 'ATR' ? display.all : display.none)
 
-<!--
-  <<< Author notes: Footer >>>
-  Add a link to get support, GitHub status page, code of conduct, license link.
--->
+//----------lines for fill----------//
+// Only create the yellow zone boundaries
+z2Top = hline(select == 'Percent' ? -8.0 : -4.00, 'Yellow Zone Top', color.new(color.yellow,100))
+z2Btm = hline(select == 'Percent' ? -15.0 : -8.00, 'Yellow Zone Bottom', color.new(color.yellow,100))
 
----
+//----------fills----------//
+// Apply user-defined transparency to zone color
+z2Color = color.new(z2Col, zoneTransparency)
 
-Get help: [Post in our discussion board](https://github.com/orgs/skills/discussions/categories/github-pages) &bull; [Review the GitHub status page](https://www.githubstatus.com/)
+// Only fill the yellow zone
+fill(z2Top, z2Btm, z2Color)
 
-&copy; 2023 GitHub &bull; [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md) &bull; [MIT License](https://gh.io/mit)
+// Add an alert condition for yellow zone crossing
+alertcondition(crossingIntoYellowZone, "Yellow Zone Crossing", "Price has crossed into the yellow zone")
 
-</footer>
+
